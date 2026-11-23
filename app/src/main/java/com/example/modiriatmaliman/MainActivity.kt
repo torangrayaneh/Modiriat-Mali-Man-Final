@@ -201,8 +201,15 @@ class MainActivity : Activity() {
     private fun button(s: String, action: () -> Unit): Button = Button(this).apply {
         text = s
         isAllCaps = false
+        textSize = 15f
+        minHeight = dp(50)
         setTextColor(0xFFFFFFFF.toInt())
-        backgroundTintList = android.content.res.ColorStateList.valueOf(green)
+        background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(green)
+            cornerRadius = dp(14).toFloat()
+            setStroke(dp(1), 0xFFB9954A.toInt())
+        }
+        setPadding(dp(12), dp(6), dp(12), dp(6))
         setOnClickListener { action() }
     }
 
@@ -292,7 +299,11 @@ class MainActivity : Activity() {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(10))
-            setBackgroundColor(bg)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(bg)
+                cornerRadius = dp(16).toFloat()
+                setStroke(dp(1), 0xFFE5DCC8.toInt())
+            }
         }
         box.addView(text(label, 14f, false, muted))
         box.addView(text("${DB.fmt(value)} تومان", 23f, true))
