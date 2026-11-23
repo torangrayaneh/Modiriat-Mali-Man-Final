@@ -360,14 +360,9 @@ class MainActivity : FragmentActivity() {
         add(card("واریزی‌های این ماه", income, 0xFFE5F4EC.toInt()))
         add(card("هزینه‌های این ماه", expense, 0xFFFBE9E7.toInt()))
         add(card("مانده کل تا امروز", balance, 0xFFE8EEF9.toInt()))
-        add(button("＋ ثبت واریزی") { showEntry("income") })
-        add(button("− ثبت هزینه") { showEntry("expense") })
-        add(text("گزارش‌ها و دفتر حساب", 18f, true))
-        add(button("گزارش مالی ماهانه") { showReport() })
-        add(button("گزارش جامع و گردش مالی") { showComprehensiveReport() })
-        add(button("خروجی گزارش Excel (XLS)") { exportFinancialReport(false) })
-        add(button("خروجی گزارش HTML") { exportFinancialReport(true) })
-        add(button("دفتر حساب اشخاص") { startActivity(android.content.Intent(this, PersonAccountsActivity::class.java)) })
+        add(text("منوی اصلی", 18f, true))
+        add(button("دخل و خرج  •  ثبت دریافت‌ها و پرداخت‌ها") { showCashFlowMenu() })
+        add(button("گزارش اشخاص و گزارش‌ها") { showReportsMenu() })
         add(button("درباره ما") { showAbout() })
         add(text("آخرین تراکنش‌ها", 19f, true))
         val items = db.recent()
@@ -375,6 +370,27 @@ class MainActivity : FragmentActivity() {
         else items.forEach { add(text(it, 14f, false)) }
         add(text("تمام تاریخ‌ها شمسی هستند و اطلاعات روی همین گوشی ذخیره می‌شوند.", 12f, false, muted))
         add(text("توسعه و پشتیبانی: ترنج رایانه اسپادانا", 12f, true, muted))
+    }
+
+    private fun showCashFlowMenu() {
+        page()
+        add(text("دخل و خرج", 26f, true, green))
+        add(text("ثبت و مدیریت دریافت‌ها و هزینه‌های عمومی", 14f, false, muted))
+        add(button("＋ ثبت واریزی") { showEntry("income") })
+        add(button("− ثبت هزینه") { showEntry("expense") })
+        add(button("بازگشت به صفحه اصلی") { showHome() })
+    }
+
+    private fun showReportsMenu() {
+        page()
+        add(text("گزارش اشخاص و گزارش‌ها", 25f, true, green))
+        add(text("دسترسی یکپارچه به گزارش‌های مالی و دفتر حساب اشخاص", 14f, false, muted))
+        add(button("دفتر حساب اشخاص") { startActivity(android.content.Intent(this, PersonAccountsActivity::class.java)) })
+        add(button("گزارش مالی ماهانه") { showReport() })
+        add(button("گزارش جامع و گردش مالی") { showComprehensiveReport() })
+        add(button("خروجی گزارش Excel (XLS)") { exportFinancialReport(false) })
+        add(button("خروجی گزارش HTML") { exportFinancialReport(true) })
+        add(button("بازگشت به صفحه اصلی") { showHome() })
     }
 
     private fun showAbout() {
