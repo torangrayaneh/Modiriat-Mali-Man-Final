@@ -92,7 +92,10 @@ class PersonAccountsActivity:Activity(){
  }
  private fun status(b:Long)=when{b>0L->"طلبکار از ما";b<0L->"بدهکار به ما";else->"تسویه"}
  private fun showList(){
-  if(!restoringPage)pageHistory.clear()
+  if(!restoringPage){
+   pageHistory.clear()
+   currentPage=null
+  }
   registerPage{showList()}
   page("حساب اشخاص","دفتر معین اشخاص • ثبت دریافت، پرداخت و مانده حساب")
   val c=db.rawQuery("SELECT COUNT(*) FROM people",null);c.moveToFirst();val count=c.getInt(0);c.close()
