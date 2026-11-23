@@ -248,16 +248,59 @@ class MainActivity : FragmentActivity() {
         val headers = listOf("نوع تراکنش", "عنوان / شخص", "مبلغ (تومان)", "تاریخ شمسی", "توضیحات")
         pendingExport = if (asHtml) {
             val out = StringBuilder()
-            out.append("<!doctype html><html lang='fa' dir='rtl'><meta charset='utf-8'><title>گزارش مالی</title>")
-            out.append("<style>body{font-family:Tahoma;margin:24px;color:#202a25}h2{color:#145a43}table{border-collapse:collapse;width:100%}th,td{border:1px solid #cbd5ce;padding:9px;text-align:right}th{background:#145a43;color:white}</style>")
-            out.append("<h2>گزارش مالی - مدیریت مالی من</h2><table><tr>")
+            val money = { value: Long -> NumberFormat.getInstance(Locale("fa", "IR")).format(value) + " تومان" }
+            out.append("<!doctype html><html lang='fa' dir='rtl'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>گزارش مالی اشخاص</title>")
+            out.append("<style>body{font-family:Tahoma,Arial;margin:20px;color:#202a25;background:#f5f7f6}h1,h2{color:#145a43}.panel{background:white;border:1px solid #dce5df;border-radius:12px;padding:14px;margin:12px 0}.index a{display:block;padding:10px;color:#145a43;text-decoration:none;border-bottom:1px solid #e5ece7}table{border-collapse:collapse;width:100%;margin-top:10px;background:white}th,td{border:1px solid #cbd5ce;padding:9px;text-align:right}th{background:#145a43;color:white}.muted{color:#778078}.back{display:inline-block;margin-top:10px;color:#145a43}</style>")
+            out.append("<h1>گزارش مالی مدیریت مالی من</h1><p class='muted'>تمام مبالغ بر اساس تومان است.</p>")
+            out.append("<div class='panel index'><h2>فهرست حساب اشخاص</h2>")
+            val peopleCursor = db.readableDatabase.rawQuery("SELECT id,name FROM people ORDER BY name", null)
+            val peopleList = mutableListOf<Pair<Long, String>>()
+            while (peopleCursor.moveToNext()) peopleList.add(peopleCursor.getLong(0) to peopleCursor.getString(1))
+            peopleCursor.close()
+            if (peopleList.isEmpty()) out.append("<p>هنوز شخصی ثبت نشده است.</p>")
+            peopleList.forEach { (personId, personName) ->
+                out.append("<a href='#person-").append(personId).append("'>").append(htmlEscape(personName)).append(" — مشاهده حساب</a>")
+            }
+            out.append("</div>")
+            peopleList.forEach { (personId, personName) ->
+                var received = 0L
+                var paid = 0L
+                val tx = db.readableDatabase.rawQuery("SELECT kind,amount,day,note FROM person_transactions WHERE person_id=? ORDER BY day,id", arrayOf(personId.toString()))
+                val transactions = mutableListOf<List<String>>()
+                while (tx.moveToNext()) {
+                    val kind = tx.getString(0)
+                    val amount = tx.getLong(1)
+                    if (kind == "received") received += amount else paid += amount
+                    transactions.add(listOf(if (kind == "received") "دریافت" else "پرداخت", money(amount), persianDigits(tx.getString(2)), tx.getString(3).orEmpty()))
+                }
+                tx.close()
+                val balance = received - paid
+                out.append("<section class='panel' id='person-").append(personId).append("'>")
+                out.append("<h2>").append(htmlEscape(personName)).append("</h2>")
+                out.append("<p>جمع دریافت: ").append(money(received)).append(" | جمع پرداخت: ").append(money(paid)).append("</p>")
+                out.append("<p><b>مانده: ").append(money(kotlin.math.abs(balance))).append(" — ")
+                    .append(if (balance > 0) "طلبکار از ما" else if (balance < 0) "بدهکار به ما" else "تسویه")
+                    .append("</b></p>")
+                out.append("<table><tr><th>نوع</th><th>مبلغ</th><th>تاریخ شمسی</th><th>شرح</th></tr>")
+                if (transactions.isEmpty()) out.append("<tr><td colspan='4'>تراکنشی ثبت نشده است.</td></tr>")
+                transactions.forEach { row ->
+                    out.append("<tr>")
+                    row.forEach { out.append("<td>").append(htmlEscape(it)).append("</td>") }
+                    out.append("</tr>")
+                }
+                out.append("</table><a class='back' href='#top'>بازگشت به فهرست</a></section>")
+            }
+            out.append("<div id='top'></div><h2>گردش عمومی مالی</h2><table><tr>")
             headers.forEach { out.append("<th>").append(htmlEscape(it)).append("</th>") }
             out.append("</tr>")
-            rows.forEach { row ->
+            val general = db.readableDatabase.rawQuery("SELECT kind,title,amount,day,note FROM entries ORDER BY day,id", null)
+            while (general.moveToNext()) {
+                val row = listOf(if (general.getString(0) == "income") "واریزی" else "هزینه", general.getString(1), money(general.getLong(2)), persianDigits(general.getString(3)), general.getString(4).orEmpty())
                 out.append("<tr>")
                 row.forEach { out.append("<td>").append(htmlEscape(it)).append("</td>") }
                 out.append("</tr>")
             }
+            general.close()
             out.append("</table></html>").toString()
         } else {
             // Excel-compatible SpreadsheetML 2003 workbook (.xls).
@@ -309,7 +352,7 @@ class MainActivity : FragmentActivity() {
     private fun showHome() {
         page()
         add(text("مدیریت مالی من", 26f, true, green))
-        add(text("خلاصه وضعیت مالی • ${persianDigits(todayJalali())}", 13f, false, muted))
+        add(text("خلاصه وضعیت مالی • ${persianDigits(todayJalali())} • مبالغ به تومان", 13f, false, muted))
         val month = currentMonth()
         val income = db.total("income", month)
         val expense = db.total("expense", month)
