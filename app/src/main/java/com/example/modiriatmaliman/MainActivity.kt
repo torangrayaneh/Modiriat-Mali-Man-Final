@@ -230,8 +230,12 @@ class MainActivity : Activity() {
         add(card("مانده کل تا امروز", balance, 0xFFE8EEF9.toInt()))
         add(button("＋ ثبت واریزی") { showEntry("income") })
         add(button("− ثبت هزینه") { showEntry("expense") })
-        add(button("گزارش ماهانه") { showReport() })
-        add(button("حساب اشخاص") { startActivity(android.content.Intent(this, PersonAccountsActivity::class.java)) })
+        add(text("عملیات و گزارش‌ها", 18f, true))
+        add(button("＋ ثبت واریزی") { showEntry("income") })
+        add(button("− ثبت هزینه") { showEntry("expense") })
+        add(button("گزارش مالی ماهانه") { showReport() })
+        add(button("گزارش جامع و گردش مالی") { showComprehensiveReport() })
+        add(button("دفتر حساب اشخاص") { startActivity(android.content.Intent(this, PersonAccountsActivity::class.java)) })
         add(text("آخرین تراکنش‌ها", 19f, true))
         val items = db.recent()
         if (items.isEmpty()) add(text("هنوز تراکنشی ثبت نشده است.", 14f, false, muted))
@@ -299,6 +303,43 @@ class MainActivity : Activity() {
             }
         })
         add(button("بازگشت") { showHome() })
+    }
+
+    private fun showComprehensiveReport() {
+        page()
+        add(text("گزارش جامع مالی", 25f, true, green))
+        add(text("خلاصه عملکرد مالی و گردش ثبت‌شده", 13f, false, muted))
+        val month = currentMonth()
+        val monthIncome = db.total("income", month)
+        val monthExpense = db.total("expense", month)
+        val allIncome = db.total("income")
+        val allExpense = db.total("expense")
+        add(card("واریزی این ماه", monthIncome, 0xFFE5F4EC.toInt()))
+        add(card("هزینه این ماه", monthExpense, 0xFFFBE9E7.toInt()))
+        add(card("مانده این ماه", monthIncome - monthExpense, 0xFFE8EEF9.toInt()))
+        add(card("مجموع کل واریزی‌ها", allIncome, 0xFFE5F4EC.toInt()))
+        add(card("مجموع کل هزینه‌ها", allExpense, 0xFFFBE9E7.toInt()))
+        add(card("مانده کل", allIncome - allExpense, 0xFFE8EEF9.toInt()))
+        add(text("آخرین گردش مالی", 19f, true))
+        val c = db.readableDatabase.rawQuery(
+            "SELECT kind,title,amount,day,note FROM entries ORDER BY day DESC,id DESC LIMIT 50", null
+        )
+        if (!c.moveToFirst()) add(text("تراکنشی ثبت نشده است.", 14f, false, muted))
+        else do {
+            val kind = c.getString(0)
+            val title = c.getString(1)
+            val amount = c.getLong(2)
+            val day = c.getString(3)
+            val note = c.getString(4).orEmpty()
+            add(text((if (kind == "income") "واریزی" else "هزینه") + " • " + title, 15f, true))
+            add(text(persianDigits(day) + "  |  " + DB.fmt(amount) + " تومان" +
+                if (note.isNotBlank()) "  |  " + note else "", 13f, false, muted))
+        } while (c.moveToNext())
+        c.close()
+        add(button("مشاهده گزارش جامع اشخاص") {
+            startActivity(android.content.Intent(this, PersonAccountsActivity::class.java))
+        })
+        add(button("بازگشت به صفحه اصلی") { showHome() })
     }
 
     private fun showReport() {
