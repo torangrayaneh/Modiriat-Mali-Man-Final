@@ -179,6 +179,11 @@ class DB(context: android.content.Context) : SQLiteOpenHelper(context, "finance.
 
 class MainActivity : FragmentActivity() {
     private var pendingExport: String = ""
+    private val pageHistory = ArrayDeque<() -> Unit>()
+    private var currentPage: (() -> Unit)? = null
+    private var restoringPage = false
+    private var swipeDownX = 0f
+    private var swipeDownY = 0f
     private val exportRequestCode = 7314
     private lateinit var db: DB
     private lateinit var root: LinearLayout
@@ -194,6 +199,42 @@ class MainActivity : FragmentActivity() {
         window.navigationBarColor = 0xFFF5F7F6.toInt()
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         AppSecurity.requireFingerprint(this) { showHome() }
+    }
+
+    private fun registerPage(renderer: () -> Unit) {
+        if (!restoringPage) currentPage?.let { pageHistory.addLast(it) }
+        currentPage = renderer
+        restoringPage = false
+    }
+
+    private fun navigateBack() {
+        if (pageHistory.isNotEmpty()) {
+            val previous = pageHistory.removeLast()
+            restoringPage = true
+            previous()
+        } else finish()
+    }
+
+    override fun onBackPressed() {
+        navigateBack()
+    }
+
+    override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+        when (event.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                swipeDownX = event.x
+                swipeDownY = event.y
+            }
+            android.view.MotionEvent.ACTION_UP -> {
+                val dx = event.x - swipeDownX
+                val dy = event.y - swipeDownY
+                if (dx > dp(90) && dx > kotlin.math.abs(dy) * 1.25f) {
+                    navigateBack()
+                    return true
+                }
+            }
+        }
+        return super.dispatchTouchEvent(event)
     }
 
     private fun page(): LinearLayout {
@@ -365,6 +406,8 @@ class MainActivity : FragmentActivity() {
     private fun currentMonth() = todayJalali().substring(0, 7)
 
     private fun showHome() {
+        if (!restoringPage) pageHistory.clear()
+        registerPage { showHome() }
         page()
         add(text("مدیریت مالی من", 26f, true, green))
         add(text("خلاصه وضعیت مالی • ${persianDigits(todayJalali())} • مبالغ به تومان", 13f, false, muted))
@@ -399,6 +442,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showCashFlowMenu() {
+        registerPage { showCashFlowMenu() }
         page()
         add(text("دخل و خرج", 26f, true, green))
         add(text("ثبت و مدیریت دریافت‌ها و هزینه‌های عمومی", 14f, false, muted))
@@ -408,10 +452,10 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showReportsMenu() {
+        registerPage { showReportsMenu() }
         page()
         add(text("گزارش اشخاص و گزارش‌ها", 25f, true, green))
-        add(text("دسترسی یکپارچه به گزارش‌های مالی و دفتر حساب اشخاص", 14f, false, muted))
-        add(button("دفتر حساب اشخاص") { startActivity(android.content.Intent(this, PersonAccountsActivity::class.java)) })
+        add(text("دسترسی یکپارچه به گزارش‌های مالی", 14f, false, muted))
         add(button("گزارش مالی ماهانه") { showReport() })
         add(button("گزارش جامع و گردش مالی") { showComprehensiveReport() })
         add(button("خروجی گزارش Excel (XLS)") { exportFinancialReport(false) })
@@ -420,6 +464,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showAbout() {
+        registerPage { showAbout() }
         page()
         add(text("درباره ما", 27f, true, green))
         add(text("مدیریت مالی من", 21f, true, ink))
@@ -480,6 +525,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showEntry(kind: String) {
+        registerPage { showEntry(kind) }
         page()
         val income = kind == "income"
         add(text(if (income) "ثبت واریزی" else "ثبت هزینه", 24f, true, green))
@@ -530,6 +576,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showComprehensiveReport() {
+        registerPage { showComprehensiveReport() }
         page()
         add(text("گزارش جامع مالی", 25f, true, green))
         add(text("خلاصه عملکرد مالی و گردش ثبت‌شده", 13f, false, muted))
@@ -567,6 +614,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showReport() {
+        registerPage { showReport() }
         page()
         add(text("گزارش ماهانه", 24f, true, green))
         val month = field("ماه شمسی YYYY-MM (مثلاً ${persianDigits(currentMonth())})").apply { setText(persianDigits(currentMonth())) }
