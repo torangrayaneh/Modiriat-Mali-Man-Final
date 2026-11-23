@@ -20,10 +20,10 @@ private fun paMoney(v:Long)=NumberFormat.getInstance(Locale("fa","IR")).format(v
 class PersonAccountsActivity:Activity(){
  private lateinit var db:SQLiteDatabase
  private lateinit var root:LinearLayout
- private val green=0xFF147A55.toInt()
- private val ink=0xFF17231E.toInt()
- private val muted=0xFF65736C.toInt()
- private val bg=0xFFF3F6F4.toInt()
+ private val green=0xFF145A43.toInt()
+ private val ink=0xFF202A25.toInt()
+ private val muted=0xFF778078.toInt()
+ private val bg=0xFFF4F2EC.toInt()
  private fun dp(v:Int)=(v*resources.displayMetrics.density).toInt()
 
  override fun onCreate(savedInstanceState:Bundle?){
