@@ -7,6 +7,8 @@ import android.view.Gravity
 import android.view.View
 import android.widget.*
 import android.content.ContentValues
+import android.content.Intent
+import android.net.Uri
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import java.text.NumberFormat
@@ -150,10 +152,63 @@ class PersonAccountsActivity:Activity(){
     val parts=day.split("-");val normalized="%04d-%02d-%02d".format(Locale.US,parts[0].toInt(),parts[1].toInt(),parts[2].toInt())
     val v=ContentValues().apply{put("person_id",id);put("kind",kind);put("amount",value);put("day",normalized);put("note",note.text.toString().trim())}
     val inserted=db.insert("person_transactions",null,v)
-    if(inserted==-1L)toast("ثبت عملیات انجام نشد؛ دوباره تلاش کنید") else{toast("عملیات با موفقیت ثبت شد");showPerson(id)}
+    if(inserted==-1L)toast("ثبت عملیات انجام نشد؛ دوباره تلاش کنید") else{
+     val newBalance=bal(id)
+     toast("عملیات با موفقیت ثبت شد")
+     showPerson(id)
+     askToSendSmsReport(id,name,kind,value,normalized,note.text.toString().trim(),newBalance)
+    }
    }
   }
   btn("انصراف و بازگشت", secondary=true) { showPerson(id) }
+ }
+ private fun askToSendSmsReport(id:Long,name:String,kind:String,amount:Long,day:String,note:String,balance:Long){
+  val c=db.rawQuery("SELECT phone FROM people WHERE id=?",arrayOf(id.toString()))
+  val phone=if(c.moveToFirst())c.getString(0).orEmpty().trim() else ""
+  c.close()
+  if(phone.isBlank()){
+   AlertDialog.Builder(this)
+    .setTitle("شماره تماس ثبت نشده")
+    .setMessage("تراکنش ذخیره شد، اما برای ارسال پیامک باید شماره موبایل این شخص را در مشخصات او ثبت کنید.")
+    .setPositiveButton("ویرایش مشخصات"){_,_->editPersonForSms(id)}
+    .setNegativeButton("فعلاً نه",null).show()
+   return
+  }
+  val transactionLabel=if(kind=="received")"دریافت از شما" else "پرداخت به شما"
+  val message=buildString{
+   append("گزارش حساب ")
+   append(name)
+   append("\nآخرین تراکنش: ")
+   append(transactionLabel)
+   append("\nمبلغ: ")
+   append(paMoney(amount))
+   append(" تومان\nتاریخ: ")
+   append(day)
+   if(note.isNotBlank())append("\nشرح: ").append(note)
+   append("\nمانده حساب: ")
+   append(paMoney(kotlin.math.abs(balance)))
+   append(" تومان (")
+   append(status(balance))
+   append(")")
+  }
+  AlertDialog.Builder(this)
+   .setTitle("ارسال گزارش پیامکی؟")
+   .setMessage("تراکنش ثبت شد. گزارش آخرین تراکنش و مانده حساب برای "+name+" آماده ارسال است.")
+   .setPositiveButton("باز کردن پیامک"){_,_->
+    try{
+     val sms=Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+Uri.encode(phone)))
+     sms.putExtra("sms_body",message)
+     startActivity(sms)
+    }catch(e:Exception){toast("برنامه پیامک در دسترس نیست")}
+   }
+   .setNegativeButton("بعداً",null)
+   .show()
+ }
+ private fun editPersonForSms(id:Long){
+  val p=db.rawQuery("SELECT name,phone,note FROM people WHERE id=?",arrayOf(id.toString()))
+  if(!p.moveToFirst()){p.close();return}
+  val name=p.getString(0);val phone=p.getString(1).orEmpty();val note=p.getString(2).orEmpty();p.close()
+  editPerson(id,name,phone,note)
  }
  private fun editPerson(id:Long,name:String,phone:String,note:String){
   val n=inp("نام شخص").apply{setText(name)};val ph=inp("شماره تماس").apply{setText(phone)};val memo=inp("توضیحات").apply{setText(note)}
