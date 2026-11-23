@@ -25,6 +25,7 @@ class PersonAccountsActivity:Activity(){
  private val muted=0xFF778078.toInt()
  private val bg=0xFFF4F2EC.toInt()
  private val pageHistory=ArrayDeque<()->Unit>()
+ private var currentPage:(()->Unit)?=null
  private var restoringPage=false
  private var swipeDownX=0f
  private var swipeDownY=0f
@@ -43,7 +44,8 @@ class PersonAccountsActivity:Activity(){
   showList()
  }
  private fun registerPage(renderer:()->Unit){
-  if(!restoringPage)pageHistory.addLast(renderer)
+  if(!restoringPage)currentPage?.let{pageHistory.addLast(it)}
+  currentPage=renderer
   restoringPage=false
  }
  private fun navigateBack(){
