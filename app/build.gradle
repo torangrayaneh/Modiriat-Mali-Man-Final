@@ -21,11 +21,11 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    dependencies {
-        implementation 'androidx.biometric:biometric:1.1.0'
-    }
-
     kotlinOptions {
         jvmTarget = '17'
     }
+}
+
+dependencies {
+    implementation 'androidx.biometric:biometric:1.1.0'
 }
