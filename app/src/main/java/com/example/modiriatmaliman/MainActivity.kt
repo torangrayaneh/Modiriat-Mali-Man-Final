@@ -60,11 +60,14 @@ private fun todayJalali(): String {
     return "%04d-%02d-%02d".format(Locale.US, j[0], j[1], j[2])
 }
 
-class DB(context: android.content.Context) : SQLiteOpenHelper(context, "finance.db", null, 2) {
+class DB(context: android.content.Context) : SQLiteOpenHelper(context, "finance.db", null, 3) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE entries(id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, title TEXT NOT NULL, amount INTEGER NOT NULL, day TEXT NOT NULL, note TEXT)")
         db.execSQL("CREATE INDEX idx_entries_kind_day ON entries(kind, day)")
         db.execSQL("CREATE INDEX idx_entries_title ON entries(kind, title, day)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS people(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,phone TEXT,note TEXT)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS person_transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,person_id INTEGER NOT NULL,kind TEXT NOT NULL,amount INTEGER NOT NULL,day TEXT NOT NULL,note TEXT)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_person_tx ON person_transactions(person_id,day,id)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -97,6 +100,13 @@ class DB(context: android.content.Context) : SQLiteOpenHelper(context, "finance.
                     }
                 }
             }
+        }
+    }
+
+        if (oldVersion < 3) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS people(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,phone TEXT,note TEXT)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS person_transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,person_id INTEGER NOT NULL,kind TEXT NOT NULL,amount INTEGER NOT NULL,day TEXT NOT NULL,note TEXT)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_person_tx ON person_transactions(person_id,day,id)")
         }
     }
 
