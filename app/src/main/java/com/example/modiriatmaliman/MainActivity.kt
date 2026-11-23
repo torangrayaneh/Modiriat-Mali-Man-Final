@@ -406,7 +406,10 @@ class MainActivity : FragmentActivity() {
     private fun currentMonth() = todayJalali().substring(0, 7)
 
     private fun showHome() {
-        if (!restoringPage) pageHistory.clear()
+        if (!restoringPage) {
+            pageHistory.clear()
+            currentPage = null
+        }
         registerPage { showHome() }
         page()
         add(text("مدیریت مالی من", 26f, true, green))
