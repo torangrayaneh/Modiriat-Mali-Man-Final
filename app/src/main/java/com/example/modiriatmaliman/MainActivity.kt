@@ -101,8 +101,6 @@ class DB(context: android.content.Context) : SQLiteOpenHelper(context, "finance.
                 }
             }
         }
-    }
-
         if (oldVersion < 3) {
             db.execSQL("CREATE TABLE IF NOT EXISTS people(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,phone TEXT,note TEXT)")
             db.execSQL("CREATE TABLE IF NOT EXISTS person_transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,person_id INTEGER NOT NULL,kind TEXT NOT NULL,amount INTEGER NOT NULL,day TEXT NOT NULL,note TEXT)")
