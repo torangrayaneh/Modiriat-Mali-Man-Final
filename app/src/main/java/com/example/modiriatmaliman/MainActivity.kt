@@ -157,15 +157,15 @@ class DB(context: android.content.Context) : SQLiteOpenHelper(context, "finance.
 class MainActivity : Activity() {
     private lateinit var db: DB
     private lateinit var root: LinearLayout
-    private val green = 0xFF16865B.toInt()
-    private val ink = 0xFF17231E.toInt()
-    private val muted = 0xFF65736C.toInt()
+    private val green = 0xFF145A43.toInt()
+    private val ink = 0xFF202A25.toInt()
+    private val muted = 0xFF778078.toInt()
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         db = DB(this)
-        window.statusBarColor = 0xFFF5F7F6.toInt()
+        window.statusBarColor = 0xFFF4F2EC.toInt()
         window.navigationBarColor = 0xFFF5F7F6.toInt()
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         showHome()
@@ -234,12 +234,58 @@ class MainActivity : Activity() {
         add(button("گزارش مالی ماهانه") { showReport() })
         add(button("گزارش جامع و گردش مالی") { showComprehensiveReport() })
         add(button("دفتر حساب اشخاص") { startActivity(android.content.Intent(this, PersonAccountsActivity::class.java)) })
+        add(button("درباره ما") { showAbout() })
         add(text("آخرین تراکنش‌ها", 19f, true))
         val items = db.recent()
         if (items.isEmpty()) add(text("هنوز تراکنشی ثبت نشده است.", 14f, false, muted))
         else items.forEach { add(text(it, 14f, false)) }
         add(text("تمام تاریخ‌ها شمسی هستند و اطلاعات روی همین گوشی ذخیره می‌شوند.", 12f, false, muted))
-        add(text("برنامه‌نویس: کسری یاراحمدی | با کمک ChatGPT", 11f, false, muted))
+        add(text("توسعه و پشتیبانی: ترنج رایانه اسپادانا", 12f, true, muted))
+    }
+
+    private fun showAbout() {
+        page()
+        add(text("درباره ما", 27f, true, green))
+        add(text("مدیریت مالی من", 21f, true, ink))
+        add(text("راهکاری ساده و حرفه‌ای برای مدیریت دریافت‌ها، هزینه‌ها، حساب اشخاص و گزارش‌های مالی روزانه.", 15f, false, muted))
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(18), dp(18), dp(18))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0xFFFFFFFF.toInt())
+                cornerRadius = dp(18).toFloat()
+                setStroke(dp(1), 0xFFE5DCC8.toInt())
+            }
+        }
+        panel.addView(text("توسعه‌دهنده و پشتیبان", 14f, false, muted))
+        panel.addView(text("شرکت ترنج رایانه اسپادانا", 20f, true, green))
+        panel.addView(text("کسری یاراحمدی", 18f, true, ink))
+        panel.addView(text("شماره تماس: 09202209190", 16f, false, ink).apply {
+            setOnClickListener {
+                try { startActivity(android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:09202209190"))) }
+                catch (_: Exception) { Toast.makeText(this@MainActivity, "امکان باز کردن شماره‌گیر وجود ندارد", Toast.LENGTH_SHORT).show() }
+            }
+        })
+        panel.addView(text("ایمیل: torangrayaneh@gmail.com", 16f, false, ink).apply {
+            setOnClickListener {
+                try {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO, android.net.Uri.parse("mailto:torangrayaneh@gmail.com"))
+                    intent.putExtra(android.content.Intent.EXTRA_SUBJECT, "پشتیبانی مدیریت مالی من")
+                    startActivity(intent)
+                } catch (_: Exception) { Toast.makeText(this@MainActivity, "برنامه ایمیل در دسترس نیست", Toast.LENGTH_SHORT).show() }
+            }
+        })
+        add(panel)
+        add(text("ترنج رایانه اسپادانا • طراحی و توسعه نرم‌افزارهای کاربردی", 13f, false, muted))
+        add(button("تماس با پشتیبانی") {
+            try { startActivity(android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:09202209190"))) }
+            catch (_: Exception) { Toast.makeText(this, "امکان باز کردن شماره‌گیر وجود ندارد", Toast.LENGTH_SHORT).show() }
+        })
+        add(button("ارسال ایمیل") {
+            try { startActivity(android.content.Intent(android.content.Intent.ACTION_SENDTO, android.net.Uri.parse("mailto:torangrayaneh@gmail.com"))) }
+            catch (_: Exception) { Toast.makeText(this, "برنامه ایمیل در دسترس نیست", Toast.LENGTH_SHORT).show() }
+        })
+        add(button("بازگشت به صفحه اصلی") { showHome() })
     }
 
     private fun card(label: String, value: Long, bg: Int): View {
