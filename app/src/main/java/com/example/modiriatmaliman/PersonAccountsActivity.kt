@@ -24,6 +24,10 @@ class PersonAccountsActivity:Activity(){
  private val ink=0xFF202A25.toInt()
  private val muted=0xFF778078.toInt()
  private val bg=0xFFF4F2EC.toInt()
+ private val pageHistory=ArrayDeque<()->Unit>()
+ private var restoringPage=false
+ private var swipeDownX=0f
+ private var swipeDownY=0f
  private fun dp(v:Int)=(v*resources.displayMetrics.density).toInt()
 
  override fun onCreate(savedInstanceState:Bundle?){
@@ -37,6 +41,28 @@ class PersonAccountsActivity:Activity(){
   db.execSQL("CREATE TABLE IF NOT EXISTS person_transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,person_id INTEGER NOT NULL,kind TEXT NOT NULL,amount INTEGER NOT NULL,day TEXT NOT NULL,note TEXT)")
   db.execSQL("CREATE INDEX IF NOT EXISTS idx_person_tx ON person_transactions(person_id,day,id)")
   showList()
+ }
+ private fun registerPage(renderer:()->Unit){
+  if(!restoringPage)pageHistory.addLast(renderer)
+  restoringPage=false
+ }
+ private fun navigateBack(){
+  if(pageHistory.isNotEmpty()){
+   val previous=pageHistory.removeLast()
+   restoringPage=true
+   previous()
+  }else finish()
+ }
+ override fun onBackPressed(){navigateBack()}
+ override fun dispatchTouchEvent(event:android.view.MotionEvent):Boolean{
+  when(event.actionMasked){
+   android.view.MotionEvent.ACTION_DOWN->{swipeDownX=event.x;swipeDownY=event.y}
+   android.view.MotionEvent.ACTION_UP->{
+    val dx=event.x-swipeDownX;val dy=event.y-swipeDownY
+    if(dx>dp(90)&&dx>kotlin.math.abs(dy)*1.25f){navigateBack();return true}
+   }
+  }
+  return super.dispatchTouchEvent(event)
  }
  private fun page(title:String,subtitle:String=""){
   root=LinearLayout(this).apply{orientation=1;layoutDirection=View.LAYOUT_DIRECTION_RTL;setPadding(dp(18),dp(16),dp(18),dp(18));setBackgroundColor(bg)}
@@ -64,6 +90,8 @@ class PersonAccountsActivity:Activity(){
  }
  private fun status(b:Long)=when{b>0L->"طلبکار از ما";b<0L->"بدهکار به ما";else->"تسویه"}
  private fun showList(){
+  if(!restoringPage)pageHistory.clear()
+  registerPage{showList()}
   page("حساب اشخاص","دفتر معین اشخاص • ثبت دریافت، پرداخت و مانده حساب")
   val c=db.rawQuery("SELECT COUNT(*) FROM people",null);c.moveToFirst();val count=c.getInt(0);c.close()
   var totalPositive=0L;var totalNegative=0L
@@ -112,6 +140,7 @@ class PersonAccountsActivity:Activity(){
   }.setNegativeButton("انصراف",null).show()
  }
  private fun showPerson(id:Long){
+  registerPage{showPerson(id)}
   val p=db.rawQuery("SELECT name,phone,note FROM people WHERE id=?",arrayOf(id.toString()))
   if(!p.moveToFirst()){p.close();showList();return}
   val name=p.getString(0);val phone=p.getString(1).orEmpty();val note=p.getString(2).orEmpty();p.close()
@@ -135,6 +164,7 @@ class PersonAccountsActivity:Activity(){
   btn("بازگشت به فهرست اشخاص", secondary=true) { showList() }
  }
  private fun transactionPage(id:Long,name:String,kind:String){
+  registerPage{transactionPage(id,name,kind)}
   val isReceived=kind=="received"
   page(if(isReceived)"ثبت دریافتی" else "ثبت پرداختی","حساب: "+name)
   card(if(isReceived)"دریافتی از شخص" else "پرداختی به شخص",if(isReceived)"این مبلغ به مانده بستانکاری شخص اضافه می‌شود." else "این مبلغ از مانده بستانکاری شخص کسر می‌شود."){}
@@ -154,6 +184,7 @@ class PersonAccountsActivity:Activity(){
     val inserted=db.insert("person_transactions",null,v)
     if(inserted==-1L)toast("ثبت عملیات انجام نشد؛ دوباره تلاش کنید") else{
      val newBalance=bal(id)
+     pageHistory.clear()
      toast("عملیات با موفقیت ثبت شد")
      showPerson(id)
      askToSendSmsReport(id,name,kind,value,normalized,note.text.toString().trim(),newBalance)
@@ -236,6 +267,7 @@ class PersonAccountsActivity:Activity(){
   btn("بازگشت به فهرست", secondary=true) { showList() }
  }
  private fun personReport(id:Long,name:String){
+  registerPage{personReport(id,name)}
   page("گزارش حساب • "+name,"ریزگردش، جمع عملیات و مانده نهایی")
   var received=0L;var paid=0L
   val sums=db.rawQuery("SELECT kind,COALESCE(SUM(amount),0),COUNT(*) FROM person_transactions WHERE person_id=? GROUP BY kind",arrayOf(id.toString()))
