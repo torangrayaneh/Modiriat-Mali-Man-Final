@@ -138,14 +138,14 @@ class PersonAccountsActivity:Activity(){
   val isReceived=kind=="received"
   page(if(isReceived)"ثبت دریافتی" else "ثبت پرداختی","حساب: "+name)
   card(if(isReceived)"دریافتی از شخص" else "پرداختی به شخص",if(isReceived)"این مبلغ به مانده بستانکاری شخص اضافه می‌شود." else "این مبلغ از مانده بستانکاری شخص کسر می‌شود."){}
-  val amount=inp("مبلغ به تومان",true)
+  val amount=inp("مبلغ به تومان",true).apply{enableThousandsGrouping()}
   val date=inp("تاریخ شمسی (مثلاً ۱۴۰۵-۰۹-۰۲)").apply{setText(today())}
   val note=inp("شرح عملیات / توضیحات")
   txt("مبلغ",13f,false,muted);add(amount)
   txt("تاریخ",13f,false,muted);add(date)
   txt("شرح",13f,false,muted);add(note)
   btn("ثبت نهایی عملیات"){
-   val value=paDigits(amount.text.toString()).replace(",","").replace("٬","").trim().toLongOrNull()
+   val value=paDigits(amount.text.toString()).replace(Regex("[^0-9]"),"").trim().toLongOrNull()
    val day=paDigits(date.text.toString()).trim().replace('/','-')
    if(value==null||value<=0||!Regex("^\\d{4}-\\d{1,2}-\\d{1,2}$").matches(day))toast("مبلغ مثبت و تاریخ شمسی با قالب سال-ماه-روز وارد کنید")
    else{
