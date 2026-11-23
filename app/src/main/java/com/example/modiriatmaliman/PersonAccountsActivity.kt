@@ -48,7 +48,7 @@ class PersonAccountsActivity:Activity(){
  private fun txt(s:String,size:Float=15f,bold:Boolean=false,color:Int=ink){
   add(TextView(this).apply{text=s;textSize=size;setTextColor(color);gravity=Gravity.RIGHT;if(bold)setTypeface(null,1);setPadding(0,dp(5),0,dp(5))})
  }
- private fun btn(s:String,f:()->Unit,secondary:Boolean=false){
+ private fun btn(s:String,secondary:Boolean=false,f:()->Unit){
   add(Button(this).apply{text=s;isAllCaps=false;isEnabled=true;isClickable=true;minHeight=dp(48);setTextColor(if(secondary)green else -1);backgroundTintList=android.content.res.ColorStateList.valueOf(if(secondary)0xFFE2EEE8.toInt() else green);setOnClickListener{f()}})
  }
  private fun inp(h:String,num:Boolean=false)=EditText(this).apply{hint=h;textSize=16f;gravity=Gravity.RIGHT;setSingleLine(true);if(num)inputType=android.text.InputType.TYPE_CLASS_NUMBER;setPadding(dp(12),dp(9),dp(12),dp(9));setTextColor(ink);setHintTextColor(muted);background=android.graphics.drawable.GradientDrawable().apply{setColor(-1);cornerRadius=dp(10).toFloat();setStroke(dp(1),0xFFDCE5DF.toInt())}}
@@ -91,7 +91,7 @@ class PersonAccountsActivity:Activity(){
   }
   render("")
   q.addTextChangedListener(object:android.text.TextWatcher{override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int){};override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int){render(s?.toString().orEmpty())};override fun afterTextChanged(s:android.text.Editable?){}})
-  btn("بازگشت به صفحه اصلی", {finish()},true)
+  btn("بازگشت به صفحه اصلی", secondary=true) { finish() }
  }
  private fun addPerson(){
   val n=inp("نام و نام خانوادگی");val ph=inp("شماره تماس (اختیاری)",true);val note=inp("توضیحات")
@@ -115,7 +115,7 @@ class PersonAccountsActivity:Activity(){
   if(note.isNotBlank())txt("توضیحات: "+note,13f,false,muted)
   txt("ثبت عملیات",18f,true)
   btn("＋ ثبت دریافتی از شخص", {transactionPage(id,name,"received")})
-  btn("− ثبت پرداختی به شخص", {transactionPage(id,name,"paid")},true)
+  btn("− ثبت پرداختی به شخص", secondary=true) { transactionPage(id,name,"paid") }
   btn("گزارش کامل این شخص"){personReport(id,name)}
   btn("ویرایش مشخصات شخص"){editPerson(id,name,phone,note)}
   txt("آخرین گردش حساب",18f,true)
@@ -125,7 +125,7 @@ class PersonAccountsActivity:Activity(){
    card((if(kind=="received")"دریافتی از شخص" else "پرداختی به شخص")+" • "+paMoney(amount)+" تومان",day+(if(memo.isNotBlank())" • "+memo else "")){}
   }while(c.moveToNext())
   c.close()
-  btn("بازگشت به فهرست اشخاص",{showList()},true)
+  btn("بازگشت به فهرست اشخاص", secondary=true) { showList() }
  }
  private fun transactionPage(id:Long,name:String,kind:String){
   val isReceived=kind=="received"
@@ -148,7 +148,7 @@ class PersonAccountsActivity:Activity(){
     if(inserted==-1L)toast("ثبت عملیات انجام نشد؛ دوباره تلاش کنید") else{toast("عملیات با موفقیت ثبت شد");showPerson(id)}
    }
   }
-  btn("انصراف و بازگشت",{showPerson(id)},true)
+  btn("انصراف و بازگشت", secondary=true) { showPerson(id) }
  }
  private fun editPerson(id:Long,name:String,phone:String,note:String){
   val n=inp("نام شخص").apply{setText(name)};val ph=inp("شماره تماس").apply{setText(phone)};val memo=inp("توضیحات").apply{setText(note)}
@@ -173,7 +173,7 @@ class PersonAccountsActivity:Activity(){
   card("طلب اشخاص از ما",paMoney(credit)+" تومان"){}
   card("بدهی اشخاص به ما",paMoney(debt)+" تومان"){}
   txt("تعداد حساب‌های تسویه‌شده: "+settled,14f,false,muted)
-  btn("بازگشت به فهرست",{showList()},true)
+  btn("بازگشت به فهرست", secondary=true) { showList() }
  }
  private fun personReport(id:Long,name:String){
   page("گزارش حساب • "+name,"ریزگردش، جمع عملیات و مانده نهایی")
@@ -190,7 +190,7 @@ class PersonAccountsActivity:Activity(){
   if(!c.moveToFirst())txt("تراکنشی برای نمایش وجود ندارد.",13f,false,muted)
   else do{val k=c.getString(0);val a=c.getLong(1);val d=c.getString(2);val memo=c.getString(3).orEmpty();card((if(k=="received")"دریافتی" else "پرداختی")+" • "+paMoney(a)+" تومان",d+(if(memo.isNotBlank())" • "+memo else "")){} }while(c.moveToNext())
   c.close()
-  btn("بازگشت به حساب شخص",{showPerson(id)},true)
+  btn("بازگشت به حساب شخص", secondary=true) { showPerson(id) }
  }
  private fun today():String{
   val c=java.util.Calendar.getInstance();val gy=c.get(1);val gm=c.get(2)+1;val gd=c.get(5);val gdays=intArrayOf(0,31,59,90,120,151,181,212,243,273,304,334);val gy2=if(gm>2)gy+1 else gy
