@@ -115,6 +115,21 @@ class DB(context: android.content.Context) : SQLiteOpenHelper(context, "finance.
         )
     }
 
+    /** Positive person balances are amounts owed to people; negative balances are amounts owed by people. */
+    fun peopleBalanceTotals(): Pair<Long, Long> {
+        val c = readableDatabase.rawQuery(
+            "SELECT COALESCE(SUM(CASE WHEN balance>0 THEN balance ELSE 0 END),0), " +
+                "COALESCE(SUM(CASE WHEN balance<0 THEN -balance ELSE 0 END),0) " +
+                "FROM (SELECT p.id, COALESCE(SUM(CASE WHEN t.kind='received' THEN t.amount ELSE -t.amount END),0) balance " +
+                "FROM people p LEFT JOIN person_transactions t ON t.person_id=p.id GROUP BY p.id)",
+            null
+        )
+        c.moveToFirst()
+        val result = c.getLong(0) to c.getLong(1)
+        c.close()
+        return result
+    }
+
     fun total(kind: String, month: String? = null): Long {
         val q = if (month == null) "SELECT COALESCE(SUM(amount),0) FROM entries WHERE kind=?"
         else "SELECT COALESCE(SUM(amount),0) FROM entries WHERE kind=? AND substr(day,1,7)=?"
@@ -360,8 +375,19 @@ class MainActivity : FragmentActivity() {
         add(card("واریزی‌های این ماه", income, 0xFFE5F4EC.toInt()))
         add(card("هزینه‌های این ماه", expense, 0xFFFBE9E7.toInt()))
         add(card("مانده کل تا امروز", balance, 0xFFE8EEF9.toInt()))
+        val peopleTotals = db.peopleBalanceTotals()
+        val peopleBalanceRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+        }
+        peopleBalanceRow.addView(card("طلب اشخاص از ما", peopleTotals.first, 0xFFFFF1DF.toInt()),
+            LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = dp(4) })
+        peopleBalanceRow.addView(card("بدهی اشخاص به ما", peopleTotals.second, 0xFFE5F4EC.toInt()),
+            LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(4) })
+        add(peopleBalanceRow)
         add(text("منوی اصلی", 18f, true))
         add(button("دخل و خرج  •  ثبت دریافت‌ها و پرداخت‌ها") { showCashFlowMenu() })
+        add(button("دفتر حساب اشخاص") { startActivity(android.content.Intent(this, PersonAccountsActivity::class.java)) })
         add(button("گزارش اشخاص و گزارش‌ها") { showReportsMenu() })
         add(button("درباره ما") { showAbout() })
         add(text("آخرین تراکنش‌ها", 19f, true))
