@@ -1,6 +1,6 @@
 package com.example.modiriatmaliman
 
-import android.app.Activity
+import androidx.fragment.app.FragmentActivity
 import android.os.Bundle
 import android.graphics.Typeface
 import android.view.Gravity
@@ -154,7 +154,9 @@ class DB(context: android.content.Context) : SQLiteOpenHelper(context, "finance.
     }
 }
 
-class MainActivity : Activity() {
+class MainActivity : FragmentActivity() {
+    private var pendingExport: String = ""
+    private val exportRequestCode = 7314
     private lateinit var db: DB
     private lateinit var root: LinearLayout
     private val green = 0xFF145A43.toInt()
@@ -168,7 +170,7 @@ class MainActivity : Activity() {
         window.statusBarColor = 0xFFF4F2EC.toInt()
         window.navigationBarColor = 0xFFF5F7F6.toInt()
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        showHome()
+        AppSecurity.requireFingerprint(this) { showHome() }
     }
 
     private fun page(): LinearLayout {
@@ -222,6 +224,62 @@ class MainActivity : Activity() {
         setBackgroundColor(0xFFFFFFFF.toInt())
     }
 
+
+    private fun exportFinancialReport(asHtml: Boolean) {
+        val rows = mutableListOf<List<String>>()
+        val c = db.readableDatabase.rawQuery("SELECT kind,title,amount,day,note FROM entries ORDER BY day,id", null)
+        while (c.moveToNext()) {
+            rows.add(listOf(if (c.getString(0) == "income") "واریزی" else "هزینه", c.getString(1), c.getLong(2).toString(), c.getString(3), c.getString(4).orEmpty()))
+        }
+        c.close()
+        val pc = db.readableDatabase.rawQuery("SELECT p.name,t.kind,t.amount,t.day,t.note FROM person_transactions t JOIN people p ON p.id=t.person_id ORDER BY t.day,t.id", null)
+        while (pc.moveToNext()) {
+            rows.add(listOf(if (pc.getString(1) == "received") "دریافت از شخص" else "پرداخت به شخص", pc.getString(0), pc.getLong(2).toString(), pc.getString(3), pc.getString(4).orEmpty()))
+        }
+        pc.close()
+        val headers = listOf("نوع تراکنش", "عنوان / شخص", "مبلغ (تومان)", "تاریخ شمسی", "توضیحات")
+        pendingExport = if (asHtml) {
+            val out = StringBuilder()
+            out.append("<!doctype html><html lang=\"fa\" dir=\"rtl\"><meta charset=\"utf-8\"><title>گزارش مالی</title>")
+            out.append("<style>body{font-family:Tahoma;margin:24px;color:#202a25}h2{color:#145a43}table{border-collapse:collapse;width:100%}th,td{border:1px solid #cbd5ce;padding:9px;text-align:right}th{background:#145a43;color:white}</style>")
+            out.append("<h2>گزارش مالی - مدیریت مالی من</h2><table><tr>")
+            headers.forEach { out.append("<th>").append(htmlEscape(it)).append("</th>") }
+            out.append("</tr>")
+            rows.forEach { row ->
+                out.append("<tr>")
+                row.forEach { out.append("<td>").append(htmlEscape(it)).append("</td>") }
+                out.append("</tr>")
+            }
+            out.append("</table></html>").toString()
+        } else {
+            val csvRows = listOf(headers) + rows
+            "\uFEFF" + csvRows.joinToString("\r\n") { row ->
+                row.joinToString(",") { "\"" + it.replace("\"", "\"\"") + "\"" }
+            }
+        }
+        val intent = android.content.Intent(android.content.Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(android.content.Intent.CATEGORY_OPENABLE)
+            type = if (asHtml) "text/html" else "text/csv"
+            putExtra(android.content.Intent.EXTRA_TITLE, if (asHtml) "gozaresh-mali.html" else "gozaresh-mali.csv")
+        }
+        startActivityForResult(intent, exportRequestCode)
+    }
+
+    private fun htmlEscape(value: String): String =
+        value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == exportRequestCode && resultCode == RESULT_OK && data?.data != null) {
+            try {
+                contentResolver.openOutputStream(data.data!!)?.use { it.write(pendingExport.toByteArray(Charsets.UTF_8)) }
+                Toast.makeText(this, "گزارش با موفقیت ذخیره شد", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(this, "ذخیره گزارش ناموفق بود: " + e.message, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     private fun currentMonth() = todayJalali().substring(0, 7)
 
     private fun showHome() {
@@ -240,6 +298,8 @@ class MainActivity : Activity() {
         add(text("گزارش‌ها و دفتر حساب", 18f, true))
         add(button("گزارش مالی ماهانه") { showReport() })
         add(button("گزارش جامع و گردش مالی") { showComprehensiveReport() })
+        add(button("خروجی گزارش Excel (CSV)") { exportFinancialReport(false) })
+        add(button("خروجی گزارش HTML") { exportFinancialReport(true) })
         add(button("دفتر حساب اشخاص") { startActivity(android.content.Intent(this, PersonAccountsActivity::class.java)) })
         add(button("درباره ما") { showAbout() })
         add(text("آخرین تراکنش‌ها", 19f, true))
@@ -315,7 +375,7 @@ class MainActivity : Activity() {
         val income = kind == "income"
         add(text(if (income) "ثبت واریزی" else "ثبت هزینه", 24f, true, green))
         val title = field(if (income) "عنوان واریزی" else "عنوان هزینه (مثلاً کرایه تاکسی)")
-        val amount = field("مبلغ به تومان")
+        val amount = field("مبلغ به تومان").apply { inputType = android.text.InputType.TYPE_CLASS_NUMBER; enableThousandsGrouping() }
         val day = field("تاریخ شمسی YYYY-MM-DD (مثلاً ${persianDigits(todayJalali())})").apply { setText(persianDigits(todayJalali())) }
         val note = field("توضیحات (اختیاری)")
         add(text("عنوان", 13f, false, muted)); add(title)
@@ -339,7 +399,7 @@ class MainActivity : Activity() {
         add(text("توضیحات", 13f, false, muted)); add(note)
         add(button("ذخیره") {
             val titleValue = title.text.toString().trim()
-            val amountValue = latinDigits(amount.text.toString()).replace(",", "").replace("٬", "").trim().toLongOrNull()
+            val amountValue = latinDigits(amount.text.toString()).replace(Regex("[^0-9]"), "").trim().toLongOrNull()
             val dateValue = latinDigits(day.text.toString()).trim()
             val parts = dateValue.split("-")
             val validDate = if (parts.size == 3 && parts.all { it.isNotEmpty() }) {
