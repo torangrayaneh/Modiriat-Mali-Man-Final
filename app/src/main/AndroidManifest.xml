@@ -5,6 +5,7 @@
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:supportsRtl="true">
+        <activity android:name=".PersonAccountsActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
