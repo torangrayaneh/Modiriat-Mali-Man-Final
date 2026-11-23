@@ -248,7 +248,7 @@ class MainActivity : FragmentActivity() {
         val headers = listOf("نوع تراکنش", "عنوان / شخص", "مبلغ (تومان)", "تاریخ شمسی", "توضیحات")
         pendingExport = if (asHtml) {
             val out = StringBuilder()
-            out.append("<!doctype html><html lang=\\"fa\\" dir=\\"rtl\\"><meta charset=\\"utf-8\\"><title>گزارش مالی</title>")
+            out.append("<!doctype html><html lang='fa' dir='rtl'><meta charset='utf-8'><title>گزارش مالی</title>")
             out.append("<style>body{font-family:Tahoma;margin:24px;color:#202a25}h2{color:#145a43}table{border-collapse:collapse;width:100%}th,td{border:1px solid #cbd5ce;padding:9px;text-align:right}th{background:#145a43;color:white}</style>")
             out.append("<h2>گزارش مالی - مدیریت مالی من</h2><table><tr>")
             headers.forEach { out.append("<th>").append(htmlEscape(it)).append("</th>") }
@@ -260,20 +260,21 @@ class MainActivity : FragmentActivity() {
             }
             out.append("</table></html>").toString()
         } else {
-            // Excel-compatible SpreadsheetML 2003 workbook (.xls), not a CSV renamed as Excel.
+            // Excel-compatible SpreadsheetML 2003 workbook (.xls).
             val out = StringBuilder()
-            out.append("<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?>")
-            out.append("<?mso-application progid=\\"Excel.Sheet\\"?>")
-            out.append("<Workbook xmlns=\\"urn:schemas-microsoft-com:office:spreadsheet\\" xmlns:ss=\\"urn:schemas-microsoft-com:office:spreadsheet\\">")
-            out.append("<Worksheet ss:Name=\\"گزارش مالی\\"><Table>")
+            out.append("<?xml version='1.0' encoding='UTF-8'?>")
+            out.append("<?mso-application progid='Excel.Sheet'?>")
+            out.append("<Workbook xmlns='urn:schemas-microsoft-com:office:spreadsheet' xmlns:ss='urn:schemas-microsoft-com:office:spreadsheet'>")
+            out.append("<Worksheet ss:Name='گزارش مالی'><Table>")
             (listOf(headers) + rows).forEachIndexed { rowIndex, row ->
                 out.append("<Row>")
-                row.forEach { value ->
+                row.forEachIndexed { columnIndex, value ->
                     out.append("<Cell>")
-                    if (rowIndex == 0) out.append("<Data ss:Type=\\"String\\">").append(htmlEscape(value)).append("</Data>")
-                    else if (rowIndex > 0 && row.indexOf(value) == 2 && value.matches(Regex("[0-9]+"))) {
-                        out.append("<Data ss:Type=\\"Number\\">").append(value).append("</Data>")
-                    } else out.append("<Data ss:Type=\\"String\\">").append(htmlEscape(value)).append("</Data>")
+                    if (rowIndex > 0 && columnIndex == 2 && value.matches(Regex("[0-9]+"))) {
+                        out.append("<Data ss:Type='Number'>").append(value).append("</Data>")
+                    } else {
+                        out.append("<Data ss:Type='String'>").append(htmlEscape(value)).append("</Data>")
+                    }
                     out.append("</Cell>")
                 }
                 out.append("</Row>")
