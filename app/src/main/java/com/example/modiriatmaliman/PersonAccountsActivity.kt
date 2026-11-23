@@ -18,10 +18,16 @@ private fun paMoney(v:Long)=NumberFormat.getInstance(Locale("fa","IR")).format(v
 class PersonAccountsActivity:Activity(){
  private lateinit var db:SQLiteDatabase
  private lateinit var root:LinearLayout
- private val green=0xFF16865B.toInt()
+ private val green=0xFF147A55.toInt()
+ private val ink=0xFF17231E.toInt()
+ private val muted=0xFF65736C.toInt()
+ private val bg=0xFFF3F6F4.toInt()
  private fun dp(v:Int)=(v*resources.displayMetrics.density).toInt()
+
  override fun onCreate(savedInstanceState:Bundle?){
   super.onCreate(savedInstanceState)
+  window.statusBarColor=bg;window.navigationBarColor=bg
+  window.decorView.systemUiVisibility=View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
   val helper=object:SQLiteOpenHelper(this,"finance.db",null,2){
    override fun onCreate(d:SQLiteDatabase){}
    override fun onUpgrade(d:SQLiteDatabase,o:Int,n:Int){}
@@ -32,83 +38,159 @@ class PersonAccountsActivity:Activity(){
   db.execSQL("CREATE INDEX IF NOT EXISTS idx_person_tx ON person_transactions(person_id,day,id)")
   showList()
  }
- private fun page(title:String){
-  root=LinearLayout(this).apply{orientation=1;layoutDirection=View.LAYOUT_DIRECTION_RTL;setPadding(dp(18),dp(18),dp(18),dp(12));setBackgroundColor(0xFFF5F7F6.toInt())}
-  val sc=ScrollView(this);sc.addView(root);setContentView(sc);txt(title,25f,true,green)
+ private fun page(title:String,subtitle:String=""){
+  root=LinearLayout(this).apply{orientation=1;layoutDirection=View.LAYOUT_DIRECTION_RTL;setPadding(dp(18),dp(16),dp(18),dp(18));setBackgroundColor(bg)}
+  val sc=ScrollView(this);sc.isFillViewport=true;sc.addView(root);setContentView(sc)
+  txt(title,25f,true,green)
+  if(subtitle.isNotBlank())txt(subtitle,13f,false,muted)
  }
- private fun add(v:View){root.addView(v,LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(8)})}
- private fun txt(s:String,size:Float=15f,bold:Boolean=false,color:Int=0xFF17231E.toInt()){
+ private fun add(v:View){root.addView(v,LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(9)})}
+ private fun txt(s:String,size:Float=15f,bold:Boolean=false,color:Int=ink){
   add(TextView(this).apply{text=s;textSize=size;setTextColor(color);gravity=Gravity.RIGHT;if(bold)setTypeface(null,1);setPadding(0,dp(5),0,dp(5))})
  }
- private fun btn(s:String,f:()->Unit){add(Button(this).apply{text=s;isAllCaps=false;setTextColor(-1);backgroundTintList=android.content.res.ColorStateList.valueOf(green);setOnClickListener{f()}})}
- private fun inp(h:String,num:Boolean=false)=EditText(this).apply{hint=h;textSize=16f;gravity=Gravity.RIGHT;setSingleLine(true);if(num)inputType=android.text.InputType.TYPE_CLASS_NUMBER;setPadding(dp(10),dp(6),dp(10),dp(6));setBackgroundColor(-1)}
- private fun bal(id:Long):Long{val c=db.rawQuery("SELECT COALESCE(SUM(CASE WHEN kind='received' THEN amount ELSE -amount END),0) FROM person_transactions WHERE person_id=?",arrayOf(id.toString()));c.moveToFirst();val n=c.getLong(0);c.close();return n}
+ private fun btn(s:String,f:()->Unit,secondary:Boolean=false){
+  add(Button(this).apply{text=s;isAllCaps=false;isEnabled=true;isClickable=true;minHeight=dp(48);setTextColor(if(secondary)green else -1);backgroundTintList=android.content.res.ColorStateList.valueOf(if(secondary)0xFFE2EEE8.toInt() else green);setOnClickListener{f()}})
+ }
+ private fun inp(h:String,num:Boolean=false)=EditText(this).apply{hint=h;textSize=16f;gravity=Gravity.RIGHT;setSingleLine(true);if(num)inputType=android.text.InputType.TYPE_CLASS_NUMBER;setPadding(dp(12),dp(9),dp(12),dp(9));setTextColor(ink);setHintTextColor(muted);background=android.graphics.drawable.GradientDrawable().apply{setColor(-1);cornerRadius=dp(10).toFloat();setStroke(dp(1),0xFFDCE5DF.toInt())}}
+ private fun card(title:String,detail:String,action:()->Unit){
+  val box=LinearLayout(this).apply{orientation=1;setPadding(dp(15),dp(12),dp(15),dp(12));background=android.graphics.drawable.GradientDrawable().apply{setColor(-1);cornerRadius=dp(14).toFloat();setStroke(dp(1),0xFFE2E9E4.toInt())};isClickable=true;isFocusable=true;setOnClickListener{action()}}
+  box.addView(TextView(this).apply{text=title;textSize=17f;setTextColor(ink);gravity=Gravity.RIGHT;setTypeface(null,1)})
+  box.addView(TextView(this).apply{text=detail;textSize=13f;setTextColor(green);gravity=Gravity.RIGHT})
+  add(box)
+ }
+ private fun bal(id:Long):Long{
+  val c=db.rawQuery("SELECT COALESCE(SUM(CASE WHEN kind='received' THEN amount ELSE -amount END),0) FROM person_transactions WHERE person_id=?",arrayOf(id.toString()))
+  c.moveToFirst();val n=c.getLong(0);c.close();return n
+ }
+ private fun status(b:Long)=when{b>0L->"طلبکار از ما";b<0L->"بدهکار به ما";else->"تسویه"}
  private fun showList(){
-  page("حساب اشخاص");txt("مدیریت طلب و پرداخت هر شخص",13f,false,0xFF65736C.toInt())
-  btn("＋ افزودن شخص"){addPerson()}
-  val c=db.rawQuery("SELECT id,name FROM people ORDER BY name",null);var count=0
-  while(c.moveToNext()){
-   count++;val id=c.getLong(0);val name=c.getString(1);val b=bal(id)
-   val status=if(b>0)"طلبکار از ما" else if(b<0)"بدهکار به ما" else "تسویه"
-   val card=LinearLayout(this).apply{orientation=1;setPadding(dp(14),dp(10),dp(14),dp(10));setBackgroundColor(-1);setOnClickListener{showPerson(id)}}
-   card.addView(TextView(this).apply{text=name;textSize=18f;setTextColor(0xFF17231E.toInt());gravity=Gravity.RIGHT;setTypeface(null,1)})
-   card.addView(TextView(this).apply{text=status+" • "+paMoney(kotlin.math.abs(b))+" تومان";textSize=14f;setTextColor(green);gravity=Gravity.RIGHT})
-   add(card)
-  };c.close()
-  if(count==0)txt("هنوز شخصی ثبت نشده است.",14f,false,0xFF65736C.toInt())
-  btn("گزارش کلی اشخاص"){summary()};btn("بازگشت"){finish()}
+  page("حساب اشخاص","دفتر معین اشخاص • ثبت دریافت، پرداخت و مانده حساب")
+  val c=db.rawQuery("SELECT COUNT(*) FROM people",null);c.moveToFirst();val count=c.getInt(0);c.close()
+  var totalPositive=0L;var totalNegative=0L
+  val totals=db.rawQuery("SELECT COALESCE(SUM(CASE WHEN x.balance>0 THEN x.balance ELSE 0 END),0),COALESCE(SUM(CASE WHEN x.balance<0 THEN -x.balance ELSE 0 END),0) FROM (SELECT p.id,COALESCE(SUM(CASE WHEN t.kind='received' THEN t.amount ELSE -t.amount END),0) balance FROM people p LEFT JOIN person_transactions t ON t.person_id=p.id GROUP BY p.id) x",null)
+  if(totals.moveToFirst()){totalPositive=totals.getLong(0);totalNegative=totals.getLong(1)};totals.close()
+  card("اشخاص ثبت‌شده",count.toString()+" شخص • طلب از اشخاص: "+paMoney(totalPositive)+" تومان • بدهی به اشخاص: "+paMoney(totalNegative)+" تومان"){}
+  btn("＋ افزودن شخص جدید"){addPerson()}
+  btn("گزارش جامع اشخاص"){summary()}
+  txt("فهرست اشخاص",18f,true)
+  val q=inp("جست‌وجوی نام شخص")
+  add(q)
+  val list=LinearLayout(this).apply{orientation=1}
+  add(list)
+  fun render(filter:String){
+   list.removeAllViews()
+   val cur=db.rawQuery("SELECT id,name,phone FROM people WHERE name LIKE ? ORDER BY name",arrayOf("%$filter%"))
+   if(!cur.moveToFirst())list.addView(TextView(this).apply{text=if(filter.isBlank())"هنوز شخصی ثبت نشده است." else "موردی پیدا نشد.";textSize=14f;setTextColor(muted);gravity=Gravity.RIGHT})
+   else do{val id=cur.getLong(0);val name=cur.getString(1);val phone=cur.getString(2).orEmpty();val b=bal(id)
+    val box=LinearLayout(this).apply{orientation=1;setPadding(dp(14),dp(12),dp(14),dp(12));background=android.graphics.drawable.GradientDrawable().apply{setColor(-1);cornerRadius=dp(13).toFloat();setStroke(dp(1),0xFFE2E9E4.toInt())};isClickable=true;isFocusable=true;setOnClickListener{showPerson(id)}}
+    box.addView(TextView(this).apply{text=name;textSize=18f;setTextColor(ink);gravity=Gravity.RIGHT;setTypeface(null,1)})
+    box.addView(TextView(this).apply{text=status(b)+" • "+paMoney(kotlin.math.abs(b))+" تومان"+if(phone.isNotBlank())" • "+phone else "";textSize=13f;setTextColor(if(b==0L)muted else green);gravity=Gravity.RIGHT})
+    list.addView(box,LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(8)})
+   }while(cur.moveToNext())
+   cur.close()
+  }
+  render("")
+  q.addTextChangedListener(object:android.text.TextWatcher{override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int){};override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int){render(s?.toString().orEmpty())};override fun afterTextChanged(s:android.text.Editable?){}})
+  btn("بازگشت به صفحه اصلی", {finish()},true)
  }
  private fun addPerson(){
-  val n=inp("نام شخص");val ph=inp("شماره تماس (اختیاری)",true);val note=inp("توضیحات")
+  val n=inp("نام و نام خانوادگی");val ph=inp("شماره تماس (اختیاری)",true);val note=inp("توضیحات")
   val box=LinearLayout(this).apply{orientation=1;addView(n);addView(ph);addView(note)}
   AlertDialog.Builder(this).setTitle("افزودن شخص").setView(box).setPositiveButton("ذخیره"){_,_->
    val name=n.text.toString().trim()
    if(name.isEmpty())toast("نام شخص را وارد کنید") else try{
     val v=ContentValues().apply{put("name",name);put("phone",ph.text.toString());put("note",note.text.toString())}
     db.insertOrThrow("people",null,v);showList()
-   }catch(e:Exception){toast("این نام قبلاً ثبت شده است")}
+   }catch(e:Exception){toast("این نام قبلاً ثبت شده یا اطلاعات نامعتبر است")}
   }.setNegativeButton("انصراف",null).show()
  }
  private fun showPerson(id:Long){
   val p=db.rawQuery("SELECT name,phone,note FROM people WHERE id=?",arrayOf(id.toString()))
-  if(!p.moveToFirst()){p.close();showList();return};val name=p.getString(0);val phone=p.getString(1).orEmpty();val note=p.getString(2).orEmpty();p.close()
-  val b=bal(id);page(name)
-  txt("مانده: "+paMoney(kotlin.math.abs(b))+" تومان • "+(if(b>0)"طلبکار از ما" else if(b<0)"بدهکار به ما" else "تسویه"),18f,true,green)
-  if(phone.isNotBlank())txt("تماس: "+phone,13f);if(note.isNotBlank())txt(note,13f)
-  btn("＋ ثبت دریافتی از شخص"){trans(id,"received")};btn("− ثبت پرداختی به شخص"){trans(id,"paid")}
-  txt("گردش حساب",18f,true)
-  val c=db.rawQuery("SELECT kind,amount,day,note FROM person_transactions WHERE person_id=? ORDER BY day DESC,id DESC",arrayOf(id.toString()))
-  if(!c.moveToFirst())txt("تراکنشی ثبت نشده است.",13f,false,0xFF65736C.toInt()) else do{
-   val k=c.getString(0);val a=c.getLong(1);val d=c.getString(2);val memo=c.getString(3).orEmpty()
-   txt((if(k=="received")"دریافتی" else "پرداختی")+" • "+paMoney(a)+" تومان • "+d+(if(memo.isNotBlank())"\n"+memo else ""),14f)
-  }while(c.moveToNext());c.close()
-  btn("گزارش این شخص"){personReport(id,name)};btn("بازگشت به فهرست"){showList()}
+  if(!p.moveToFirst()){p.close();showList();return}
+  val name=p.getString(0);val phone=p.getString(1).orEmpty();val note=p.getString(2).orEmpty();p.close()
+  val b=bal(id)
+  page(name,"کارت حساب شخص • گردش مالی و مانده لحظه‌ای")
+  card("مانده حساب",paMoney(kotlin.math.abs(b))+" تومان • "+status(b)){}
+  if(phone.isNotBlank())txt("شماره تماس: "+phone,13f,false,muted)
+  if(note.isNotBlank())txt("توضیحات: "+note,13f,false,muted)
+  txt("ثبت عملیات",18f,true)
+  btn("＋ ثبت دریافتی از شخص", {transactionPage(id,name,"received")})
+  btn("− ثبت پرداختی به شخص", {transactionPage(id,name,"paid")},true)
+  btn("گزارش کامل این شخص"){personReport(id,name)}
+  btn("ویرایش مشخصات شخص"){editPerson(id,name,phone,note)}
+  txt("آخرین گردش حساب",18f,true)
+  val c=db.rawQuery("SELECT id,kind,amount,day,note FROM person_transactions WHERE person_id=? ORDER BY day DESC,id DESC LIMIT 30",arrayOf(id.toString()))
+  if(!c.moveToFirst())txt("هنوز دریافتی یا پرداختی ثبت نشده است.",13f,false,muted)
+  else do{val kind=c.getString(1);val amount=c.getLong(2);val day=c.getString(3);val memo=c.getString(4).orEmpty()
+   card((if(kind=="received")"دریافتی از شخص" else "پرداختی به شخص")+" • "+paMoney(amount)+" تومان",day+(if(memo.isNotBlank())" • "+memo else "")){}
+  }while(c.moveToNext())
+  c.close()
+  btn("بازگشت به فهرست اشخاص",{showList()},true)
  }
- private fun trans(id:Long,kind:String){
-  val a=inp("مبلغ به تومان",true);val d=inp("تاریخ شمسی YYYY-MM-DD").apply{setText(today())};val note=inp("توضیحات")
-  val box=LinearLayout(this).apply{orientation=1;addView(a);addView(d);addView(note)}
-  AlertDialog.Builder(this).setTitle(if(kind=="received")"ثبت دریافتی" else "ثبت پرداختی").setView(box).setPositiveButton("ذخیره"){_,_->
-   val amount=paDigits(a.text.toString()).replace(",","").replace("٬","").trim().toLongOrNull();val date=paDigits(d.text.toString()).trim()
-   if(amount==null||amount<=0||!Regex("^\\d{4}-\\d{2}-\\d{2}$").matches(date))toast("مبلغ و تاریخ شمسی معتبر وارد کنید") else{
-    val v=ContentValues().apply{put("person_id",id);put("kind",kind);put("amount",amount);put("day",date);put("note",note.text.toString())}
-    db.insert("person_transactions",null,v);showPerson(id)
+ private fun transactionPage(id:Long,name:String,kind:String){
+  val isReceived=kind=="received"
+  page(if(isReceived)"ثبت دریافتی" else "ثبت پرداختی","حساب: "+name)
+  card(if(isReceived)"دریافتی از شخص" else "پرداختی به شخص",if(isReceived)"این مبلغ به مانده بستانکاری شخص اضافه می‌شود." else "این مبلغ از مانده بستانکاری شخص کسر می‌شود."){}
+  val amount=inp("مبلغ به تومان",true)
+  val date=inp("تاریخ شمسی (مثلاً ۱۴۰۵-۰۹-۰۲)").apply{setText(today())}
+  val note=inp("شرح عملیات / توضیحات")
+  txt("مبلغ",13f,false,muted);add(amount)
+  txt("تاریخ",13f,false,muted);add(date)
+  txt("شرح",13f,false,muted);add(note)
+  btn("ثبت نهایی عملیات"){
+   val value=paDigits(amount.text.toString()).replace(",","").replace("٬","").trim().toLongOrNull()
+   val day=paDigits(date.text.toString()).trim().replace('/','-')
+   if(value==null||value<=0||!Regex("^\\d{4}-\\d{1,2}-\\d{1,2}$").matches(day))toast("مبلغ مثبت و تاریخ شمسی با قالب سال-ماه-روز وارد کنید")
+   else{
+    val parts=day.split("-");val normalized="%04d-%02d-%02d".format(Locale.US,parts[0].toInt(),parts[1].toInt(),parts[2].toInt())
+    val v=ContentValues().apply{put("person_id",id);put("kind",kind);put("amount",value);put("day",normalized);put("note",note.text.toString().trim())}
+    val inserted=db.insert("person_transactions",null,v)
+    if(inserted==-1L)toast("ثبت عملیات انجام نشد؛ دوباره تلاش کنید") else{toast("عملیات با موفقیت ثبت شد");showPerson(id)}
    }
+  }
+  btn("انصراف و بازگشت",{showPerson(id)},true)
+ }
+ private fun editPerson(id:Long,name:String,phone:String,note:String){
+  val n=inp("نام شخص").apply{setText(name)};val ph=inp("شماره تماس").apply{setText(phone)};val memo=inp("توضیحات").apply{setText(note)}
+  val box=LinearLayout(this).apply{orientation=1;addView(n);addView(ph);addView(memo)}
+  AlertDialog.Builder(this).setTitle("ویرایش مشخصات").setView(box).setPositiveButton("ذخیره"){_,_->
+   val v=ContentValues().apply{put("name",n.text.toString().trim());put("phone",ph.text.toString());put("note",memo.text.toString())}
+   if(v.getAsString("name").isNullOrBlank())toast("نام نمی‌تواند خالی باشد") else try{db.update("people",v,"id=?",arrayOf(id.toString()));showPerson(id)}catch(e:Exception){toast("نام تکراری است")}
   }.setNegativeButton("انصراف",null).show()
  }
  private fun summary(){
-  page("گزارش کلی اشخاص");var credit=0L;var debit=0L
-  val c=db.rawQuery("SELECT id,name FROM people ORDER BY name",null)
-  while(c.moveToNext()){val b=bal(c.getLong(0));if(b>0)credit+=b else debit-=b;txt(c.getString(1)+" • "+(if(b>0)"طلبکار از ما" else if(b<0)"بدهکار به ما" else "تسویه")+" • "+paMoney(kotlin.math.abs(b))+" تومان")}
-  c.close();txt("جمع طلب اشخاص از ما: "+paMoney(credit)+" تومان",17f,true,green);txt("جمع بدهی اشخاص به ما: "+paMoney(debit)+" تومان",17f,true);txt("خالص حساب اشخاص: "+paMoney(credit-debit)+" تومان",18f,true)
-  btn("بازگشت"){showList()}
+  page("گزارش جامع اشخاص","خلاصه مانده‌ها و گردش کلی حساب‌ها")
+  var received=0L;var paid=0L
+  val totals=db.rawQuery("SELECT COALESCE(SUM(CASE WHEN kind='received' THEN amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN kind='paid' THEN amount ELSE 0 END),0) FROM person_transactions",null)
+  if(totals.moveToFirst()){received=totals.getLong(0);paid=totals.getLong(1)};totals.close()
+  val people=db.rawQuery("SELECT id,name FROM people ORDER BY name",null)
+  var credit=0L;var debt=0L;var settled=0
+  while(people.moveToNext()){val id=people.getLong(0);val name=people.getString(1);val b=bal(id);if(b>0)credit+=b else if(b<0)debt-=b else settled++;card(name,status(b)+" • "+paMoney(kotlin.math.abs(b))+" تومان"){showPerson(id)}}
+  people.close()
+  card("جمع دریافتی‌ها",paMoney(received)+" تومان"){}
+  card("جمع پرداختی‌ها",paMoney(paid)+" تومان"){}
+  card("مانده خالص",paMoney(received-paid)+" تومان"){}
+  card("طلب اشخاص از ما",paMoney(credit)+" تومان"){}
+  card("بدهی اشخاص به ما",paMoney(debt)+" تومان"){}
+  txt("تعداد حساب‌های تسویه‌شده: "+settled,14f,false,muted)
+  btn("بازگشت به فهرست",{showList()},true)
  }
  private fun personReport(id:Long,name:String){
-  page("گزارش "+name);var received=0L;var paid=0L
-  val c=db.rawQuery("SELECT kind,SUM(amount) FROM person_transactions WHERE person_id=? GROUP BY kind",arrayOf(id.toString()))
-  while(c.moveToNext()){if(c.getString(0)=="received")received=c.getLong(1) else paid=c.getLong(1)};c.close()
-  val b=received-paid;txt("مجموع دریافتی: "+paMoney(received)+" تومان",16f,true);txt("مجموع پرداختی: "+paMoney(paid)+" تومان",16f,true)
-  txt("مانده: "+paMoney(kotlin.math.abs(b))+" تومان • "+(if(b>0)"طلبکار از ما" else if(b<0)"بدهکار به ما" else "تسویه"),19f,true,green)
-  btn("بازگشت به حساب شخص"){showPerson(id)}
+  page("گزارش حساب • "+name,"ریزگردش، جمع عملیات و مانده نهایی")
+  var received=0L;var paid=0L
+  val sums=db.rawQuery("SELECT kind,COALESCE(SUM(amount),0),COUNT(*) FROM person_transactions WHERE person_id=? GROUP BY kind",arrayOf(id.toString()))
+  var count=0
+  while(sums.moveToNext()){if(sums.getString(0)=="received")received=sums.getLong(1) else paid=sums.getLong(1);count+=sums.getInt(2)}
+  sums.close();val b=received-paid
+  card("مجموع دریافتی",paMoney(received)+" تومان"){}
+  card("مجموع پرداختی",paMoney(paid)+" تومان"){}
+  card("مانده نهایی",paMoney(kotlin.math.abs(b))+" تومان • "+status(b)){}
+  txt("تعداد عملیات: "+count,14f,false,muted);txt("ریزگردش حساب",18f,true)
+  val c=db.rawQuery("SELECT kind,amount,day,note FROM person_transactions WHERE person_id=? ORDER BY day DESC,id DESC",arrayOf(id.toString()))
+  if(!c.moveToFirst())txt("تراکنشی برای نمایش وجود ندارد.",13f,false,muted)
+  else do{val k=c.getString(0);val a=c.getLong(1);val d=c.getString(2);val memo=c.getString(3).orEmpty();card((if(k=="received")"دریافتی" else "پرداختی")+" • "+paMoney(a)+" تومان",d+(if(memo.isNotBlank())" • "+memo else "")){} }while(c.moveToNext())
+  c.close()
+  btn("بازگشت به حساب شخص",{showPerson(id)},true)
  }
  private fun today():String{
   val c=java.util.Calendar.getInstance();val gy=c.get(1);val gm=c.get(2)+1;val gd=c.get(5);val gdays=intArrayOf(0,31,59,90,120,151,181,212,243,273,304,334);val gy2=if(gm>2)gy+1 else gy
