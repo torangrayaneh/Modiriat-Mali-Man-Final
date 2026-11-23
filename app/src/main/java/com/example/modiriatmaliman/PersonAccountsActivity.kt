@@ -114,7 +114,7 @@ class PersonAccountsActivity:Activity(){
   if(phone.isNotBlank())txt("شماره تماس: "+phone,13f,false,muted)
   if(note.isNotBlank())txt("توضیحات: "+note,13f,false,muted)
   txt("ثبت عملیات",18f,true)
-  btn("＋ ثبت دریافتی از شخص", {transactionPage(id,name,"received")})
+  btn("＋ ثبت دریافتی از شخص") { transactionPage(id,name,"received") }
   btn("− ثبت پرداختی به شخص", secondary=true) { transactionPage(id,name,"paid") }
   btn("گزارش کامل این شخص"){personReport(id,name)}
   btn("ویرایش مشخصات شخص"){editPerson(id,name,phone,note)}
