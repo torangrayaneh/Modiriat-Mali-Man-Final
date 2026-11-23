@@ -231,6 +231,7 @@ class MainActivity : Activity() {
         add(button("＋ ثبت واریزی") { showEntry("income") })
         add(button("− ثبت هزینه") { showEntry("expense") })
         add(button("گزارش ماهانه") { showReport() })
+        add(button("حساب اشخاص") { startActivity(android.content.Intent(this, PersonAccountsActivity::class.java)) })
         add(text("آخرین تراکنش‌ها", 19f, true))
         val items = db.recent()
         if (items.isEmpty()) add(text("هنوز تراکنشی ثبت نشده است.", 14f, false, muted))
