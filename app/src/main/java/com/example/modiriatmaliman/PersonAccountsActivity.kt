@@ -28,11 +28,9 @@ class PersonAccountsActivity:Activity(){
   super.onCreate(savedInstanceState)
   window.statusBarColor=bg;window.navigationBarColor=bg
   window.decorView.systemUiVisibility=View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-  val helper=object:SQLiteOpenHelper(this,"finance.db",null,2){
-   override fun onCreate(d:SQLiteDatabase){}
-   override fun onUpgrade(d:SQLiteDatabase,o:Int,n:Int){}
-  }
-  db=helper.writableDatabase
+  // Use the exact same database helper as the main finance module.
+  // This guarantees both modules read/write the same finance.db file.
+  db=DB(this).writableDatabase
   db.execSQL("CREATE TABLE IF NOT EXISTS people(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,phone TEXT,note TEXT)")
   db.execSQL("CREATE TABLE IF NOT EXISTS person_transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,person_id INTEGER NOT NULL,kind TEXT NOT NULL,amount INTEGER NOT NULL,day TEXT NOT NULL,note TEXT)")
   db.execSQL("CREATE INDEX IF NOT EXISTS idx_person_tx ON person_transactions(person_id,day,id)")
@@ -82,9 +80,16 @@ class PersonAccountsActivity:Activity(){
    val cur=db.rawQuery("SELECT id,name,phone FROM people WHERE name LIKE ? ORDER BY name",arrayOf("%$filter%"))
    if(!cur.moveToFirst())list.addView(TextView(this).apply{text=if(filter.isBlank())"هنوز شخصی ثبت نشده است." else "موردی پیدا نشد.";textSize=14f;setTextColor(muted);gravity=Gravity.RIGHT})
    else do{val id=cur.getLong(0);val name=cur.getString(1);val phone=cur.getString(2).orEmpty();val b=bal(id)
-    val box=LinearLayout(this).apply{orientation=1;setPadding(dp(14),dp(12),dp(14),dp(12));background=android.graphics.drawable.GradientDrawable().apply{setColor(-1);cornerRadius=dp(13).toFloat();setStroke(dp(1),0xFFE2E9E4.toInt())};isClickable=true;isFocusable=true;setOnClickListener{showPerson(id)}}
-    box.addView(TextView(this).apply{text=name;textSize=18f;setTextColor(ink);gravity=Gravity.RIGHT;setTypeface(null,1)})
-    box.addView(TextView(this).apply{text=status(b)+" • "+paMoney(kotlin.math.abs(b))+" تومان"+if(phone.isNotBlank())" • "+phone else "";textSize=13f;setTextColor(if(b==0L)muted else green);gravity=Gravity.RIGHT})
+    val box=LinearLayout(this).apply{orientation=1;setPadding(dp(14),dp(12),dp(14),dp(12));background=android.graphics.drawable.GradientDrawable().apply{setColor(-1);cornerRadius=dp(13).toFloat();setStroke(dp(1),0xFFE2E9E4.toInt())}}
+    box.addView(TextView(this).apply{text=name;textSize=18f;setTextColor(ink);gravity=Gravity.RIGHT;setTypeface(null,1);setOnClickListener{showPerson(id)}})
+    box.addView(TextView(this).apply{text=status(b)+" • "+paMoney(kotlin.math.abs(b))+" تومان"+if(phone.isNotBlank())" • "+phone else "";textSize=13f;setTextColor(if(b==0L)muted else green);gravity=Gravity.RIGHT;setOnClickListener{showPerson(id)}})
+    val actions=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;layoutDirection=View.LAYOUT_DIRECTION_RTL}
+    val receive=Button(this).apply{text="＋ دریافت";isAllCaps=false;textSize=12f;minHeight=dp(40);setTextColor(-1);backgroundTintList=android.content.res.ColorStateList.valueOf(green);setOnClickListener{transactionPage(id,name,"received")}}
+    val pay=Button(this).apply{text="− پرداخت";isAllCaps=false;textSize=12f;minHeight=dp(40);setTextColor(green);backgroundTintList=android.content.res.ColorStateList.valueOf(0xFFE2EEE8.toInt());setOnClickListener{transactionPage(id,name,"paid")}}
+    actions.addView(receive,LinearLayout.LayoutParams(0,dp(44),1f).apply{marginEnd=dp(5)})
+    actions.addView(pay,LinearLayout.LayoutParams(0,dp(44),1f).apply{marginStart=dp(5)})
+    box.addView(actions)
+    box.setOnClickListener{showPerson(id)}
     list.addView(box,LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(8)})
    }while(cur.moveToNext())
    cur.close()
